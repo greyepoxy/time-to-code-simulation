@@ -1,0 +1,14 @@
+node_modules/
+*.log
+*.swp
+*.swo
+.DS_Store
+*.log
+log.txt
+.nyc_output/
+coverage/
+
+test-workspace
+lib
+tmp
+dist

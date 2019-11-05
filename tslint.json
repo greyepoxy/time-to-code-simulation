@@ -1,0 +1,17 @@
+{
+  "extends": ["tslint:recommended", "tslint-plugin-prettier", "tslint-config-prettier"],
+  "rules": {
+    "prettier": true,
+    "object-literal-sort-keys": false,
+    "no-console": false,
+    "interface-name": false,
+    "variable-name": {
+        "options": [
+            "ban-keywords",
+            "check-format",
+            "allow-pascal-case",
+            "allow-leading-underscore"
+        ]
+    }
+  }
+}
