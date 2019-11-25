@@ -26,10 +26,15 @@ export interface CurrentState {
   totalRuntime: Duration;
 }
 
+export interface TimeToCompleteCalculationSettings {
+  baseTimeToComplete: Duration;
+}
+
 export interface SimulationInfo {
   timeStep: Duration;
   statsTimeStep: Duration;
   throughputCalculationWindow: Duration;
+  timeToCompleteCalculationSettings: TimeToCompleteCalculationSettings;
 }
 
 export interface SimulationState {
@@ -80,7 +85,15 @@ export function runForDuration(state: SimulationState, duration: Duration): Simu
   return state;
 }
 
-export function getInitialState(): SimulationState {
+export function getInitialState(simulationInfo?: Partial<SimulationInfo>): SimulationState {
+  const simulationInfoWithDefaults: SimulationInfo = {
+    timeStep,
+    statsTimeStep: statisticsCaptureTimeStep,
+    throughputCalculationWindow,
+    timeToCompleteCalculationSettings: { baseTimeToComplete: Duration.fromObject({ hours: 8 }) },
+    ...simulationInfo
+  };
+
   return {
     current: {
       completedCodeChanges: [],
@@ -94,11 +107,7 @@ export function getInitialState(): SimulationState {
         completedCodeChangesInLastWeek: 0
       }
     ],
-    runInfo: {
-      timeStep,
-      statsTimeStep: statisticsCaptureTimeStep,
-      throughputCalculationWindow
-    }
+    runInfo: simulationInfoWithDefaults
   };
 }
 
