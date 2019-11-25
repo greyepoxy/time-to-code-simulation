@@ -1,5 +1,6 @@
 import { Duration } from 'luxon';
 import { CodeChange, getCodeChange } from './codeChange';
+import { ProbabilityDistribution } from './probabilityDistribution';
 
 const timeStep = Duration.fromObject({ hours: 1 });
 const statisticsCaptureTimeStep = Duration.fromObject({
@@ -27,7 +28,8 @@ export interface CurrentState {
 }
 
 export interface TimeToCompleteCalculationSettings {
-  baseTimeToComplete: Duration;
+  baseTimeToComplete: number;
+  probabilityDistribution: ProbabilityDistribution;
 }
 
 export interface SimulationInfo {
@@ -44,7 +46,10 @@ export interface SimulationState {
 }
 
 export function runOneTimeStep(state: SimulationState): SimulationState {
-  const updatedCurrentState = updateCurrentStateForSingleTimeStep(state.current);
+  const updatedCurrentState = updateCurrentStateForSingleTimeStep(
+    state.current,
+    state.runInfo.timeToCompleteCalculationSettings
+  );
   const previousStatistics = state.history[state.history.length - 1];
 
   const timeSinceLastHistoryStatistic = updatedCurrentState.totalRuntime.minus(
@@ -90,14 +95,19 @@ export function getInitialState(simulationInfo?: Partial<SimulationInfo>): Simul
     timeStep,
     statsTimeStep: statisticsCaptureTimeStep,
     throughputCalculationWindow,
-    timeToCompleteCalculationSettings: { baseTimeToComplete: Duration.fromObject({ hours: 8 }) },
+    timeToCompleteCalculationSettings: {
+      baseTimeToComplete: 8,
+      probabilityDistribution: ProbabilityDistribution.getNormal(1.0, 0.25)
+    },
     ...simulationInfo
   };
 
   return {
     current: {
       completedCodeChanges: [],
-      currentItemInProgress: getNextItemToDo(),
+      currentItemInProgress: getNextItemToDo(
+        simulationInfoWithDefaults.timeToCompleteCalculationSettings
+      ),
       totalRuntime: Duration.fromObject({ hours: 0 })
     },
     history: [
@@ -111,7 +121,10 @@ export function getInitialState(simulationInfo?: Partial<SimulationInfo>): Simul
   };
 }
 
-function updateCurrentStateForSingleTimeStep(state: CurrentState): CurrentState {
+function updateCurrentStateForSingleTimeStep(
+  state: CurrentState,
+  timeToCompleteCalculationSettings: TimeToCompleteCalculationSettings
+): CurrentState {
   const updatedProgress = {
     ...state.currentItemInProgress,
     timeSpentSoFar: state.currentItemInProgress.timeSpentSoFar.plus(timeStep)
@@ -122,7 +135,7 @@ function updateCurrentStateForSingleTimeStep(state: CurrentState): CurrentState 
   if (updatedProgress.timeSpentSoFar.equals(updatedProgress.codeChange.timeRequiredToComplete)) {
     return {
       completedCodeChanges: state.completedCodeChanges.concat(updatedProgress.codeChange),
-      currentItemInProgress: getNextItemToDo(),
+      currentItemInProgress: getNextItemToDo(timeToCompleteCalculationSettings),
       totalRuntime: updatedRuntime
     };
   }
@@ -134,10 +147,13 @@ function updateCurrentStateForSingleTimeStep(state: CurrentState): CurrentState 
   };
 }
 
-function getNextItemToDo(): ItemInProgress {
+function getNextItemToDo(settings: TimeToCompleteCalculationSettings): ItemInProgress {
+  const hoursToComplete = Math.round(
+    settings.baseTimeToComplete * settings.probabilityDistribution.getNext()
+  );
   return {
     timeSpentSoFar: Duration.fromObject({ hours: 0 }),
-    codeChange: getCodeChange(Duration.fromObject({ hours: 8 }))
+    codeChange: getCodeChange(Duration.fromObject({ hours: hoursToComplete }))
   };
 }
 
