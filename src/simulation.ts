@@ -11,7 +11,6 @@ const throughputCalculationWindow = Duration.fromObject({
 
 export interface ItemInProgress {
   timeSpentSoFar: Duration;
-  timeRequired: Duration;
   codeChange: CodeChange;
 }
 
@@ -111,14 +110,10 @@ function updateCurrentStateForSingleTimeStep(state: CurrentState): CurrentState 
 
   const updatedRuntime = state.totalRuntime.plus(Duration.fromObject({ hours: 1 }));
 
-  if (updatedProgress.timeSpentSoFar.equals(updatedProgress.timeRequired)) {
+  if (updatedProgress.timeSpentSoFar.equals(updatedProgress.codeChange.timeRequiredToComplete)) {
     return {
       completedCodeChanges: state.completedCodeChanges.concat(updatedProgress.codeChange),
-      currentItemInProgress: {
-        timeSpentSoFar: Duration.fromObject({ hours: 0 }),
-        timeRequired: Duration.fromObject({ hours: 8 }),
-        codeChange: getCodeChange()
-      },
+      currentItemInProgress: getNextItemToDo(),
       totalRuntime: updatedRuntime
     };
   }
@@ -133,8 +128,7 @@ function updateCurrentStateForSingleTimeStep(state: CurrentState): CurrentState 
 function getNextItemToDo(): ItemInProgress {
   return {
     timeSpentSoFar: Duration.fromObject({ hours: 0 }),
-    timeRequired: Duration.fromObject({ hours: 8 }),
-    codeChange: getCodeChange()
+    codeChange: getCodeChange(Duration.fromObject({ hours: 8 }))
   };
 }
 

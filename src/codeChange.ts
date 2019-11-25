@@ -1,11 +1,15 @@
+import { Duration } from 'luxon';
+
 export interface CodeChange {
   id: number;
+  timeRequiredToComplete: Duration;
 }
 
 let id = 0;
 
-export function getCodeChange(): CodeChange {
+export function getCodeChange(timeRequiredToComplete: Duration): CodeChange {
   return {
-    id: id++
+    id: id++,
+    timeRequiredToComplete
   };
 }
