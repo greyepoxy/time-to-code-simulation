@@ -7,7 +7,7 @@ export function drawTotalWorkCompleted(
 ): void {
   const data = simulationStatistics.map(stat => ({
     x: stat.totalDuration.hours / 40,
-    y: stat.totalCompletedUnitsOfCode
+    y: stat.totalCompletedCodeChanges
   }));
   const xAxisLabel = 'Duration (weeks)';
   const yAxisLabel = 'Total Items Completed';

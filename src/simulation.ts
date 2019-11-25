@@ -1,5 +1,5 @@
 import { Duration } from 'luxon';
-import { UnitOfCode, getUnitOfCode } from './unitOfCode';
+import { CodeChange, getCodeChange } from './codeChange';
 
 const timeStep = Duration.fromObject({ hours: 1 });
 const statisticsCaptureTimeStep = Duration.fromObject({
@@ -12,17 +12,17 @@ const throughputCalculationWindow = Duration.fromObject({
 export interface ItemInProgress {
   timeSpentSoFar: Duration;
   timeRequired: Duration;
-  codeUnit: UnitOfCode;
+  codeChange: CodeChange;
 }
 
 export interface Statistics {
-  totalCompletedUnitsOfCode: number;
+  totalCompletedCodeChanges: number;
   totalDuration: Duration;
-  completedUnitsOfCodeInLastWeek: number;
+  completedCodeChangesInLastWeek: number;
 }
 
 export interface CurrentState {
-  completedUnitsOfCode: ReadonlyArray<UnitOfCode>;
+  completedCodeChanges: ReadonlyArray<CodeChange>;
   currentItemInProgress: ItemInProgress;
   totalRuntime: Duration;
 }
@@ -48,8 +48,8 @@ export function runOneTimeStep(state: SimulationState): SimulationState {
   );
   if (timeSinceLastHistoryStatistic.hours >= statisticsCaptureTimeStep.hours) {
     // calculate statistics and add a history entry
-    const currentCodeCompletionCount = updatedCurrentState.completedUnitsOfCode.length;
-    const codeCompletionCountFromStatOfThroughputTimeWindow = findTotalCompletedUnitsOfCodeAtPointInTime(
+    const currentCodeCompletionCount = updatedCurrentState.completedCodeChanges.length;
+    const codeCompletionCountFromStatOfThroughputTimeWindow = findTotalCompletedCodeChangesAtPointInTime(
       state.history,
       updatedCurrentState.totalRuntime.minus(throughputCalculationWindow)
     );
@@ -59,8 +59,8 @@ export function runOneTimeStep(state: SimulationState): SimulationState {
       current: updatedCurrentState,
       history: state.history.concat({
         totalDuration: updatedCurrentState.totalRuntime,
-        totalCompletedUnitsOfCode: currentCodeCompletionCount,
-        completedUnitsOfCodeInLastWeek:
+        totalCompletedCodeChanges: currentCodeCompletionCount,
+        completedCodeChangesInLastWeek:
           currentCodeCompletionCount - codeCompletionCountFromStatOfThroughputTimeWindow
       })
     };
@@ -84,15 +84,15 @@ export function runForDuration(state: SimulationState, duration: Duration): Simu
 export function getInitialState(): SimulationState {
   return {
     current: {
-      completedUnitsOfCode: [],
+      completedCodeChanges: [],
       currentItemInProgress: getNextItemToDo(),
       totalRuntime: Duration.fromObject({ hours: 0 })
     },
     history: [
       {
         totalDuration: Duration.fromObject({ hours: 0 }),
-        totalCompletedUnitsOfCode: 0,
-        completedUnitsOfCodeInLastWeek: 0
+        totalCompletedCodeChanges: 0,
+        completedCodeChangesInLastWeek: 0
       }
     ],
     runInfo: {
@@ -113,11 +113,11 @@ function updateCurrentStateForSingleTimeStep(state: CurrentState): CurrentState 
 
   if (updatedProgress.timeSpentSoFar.equals(updatedProgress.timeRequired)) {
     return {
-      completedUnitsOfCode: state.completedUnitsOfCode.concat(updatedProgress.codeUnit),
+      completedCodeChanges: state.completedCodeChanges.concat(updatedProgress.codeChange),
       currentItemInProgress: {
         timeSpentSoFar: Duration.fromObject({ hours: 0 }),
         timeRequired: Duration.fromObject({ hours: 8 }),
-        codeUnit: getUnitOfCode()
+        codeChange: getCodeChange()
       },
       totalRuntime: updatedRuntime
     };
@@ -134,16 +134,16 @@ function getNextItemToDo(): ItemInProgress {
   return {
     timeSpentSoFar: Duration.fromObject({ hours: 0 }),
     timeRequired: Duration.fromObject({ hours: 8 }),
-    codeUnit: getUnitOfCode()
+    codeChange: getCodeChange()
   };
 }
 
-function findTotalCompletedUnitsOfCodeAtPointInTime(
+function findTotalCompletedCodeChangesAtPointInTime(
   history: ReadonlyArray<Statistics>,
   atTotalRuntime: Duration
 ): number {
   const matchingHistory = history.find(previousStatistics =>
     previousStatistics.totalDuration.equals(atTotalRuntime)
   );
-  return matchingHistory !== undefined ? matchingHistory.totalCompletedUnitsOfCode : 0;
+  return matchingHistory !== undefined ? matchingHistory.totalCompletedCodeChanges : 0;
 }

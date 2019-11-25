@@ -7,7 +7,7 @@ export function drawThroughput(
 ): void {
   const data = simulationStatistics.map(stat => ({
     x: stat.totalDuration.hours / 40,
-    y: stat.completedUnitsOfCodeInLastWeek
+    y: stat.completedCodeChangesInLastWeek
   }));
   const xAxisLabel = 'Duration (weeks)';
   const yAxisLabel = 'Items Completed in last week';
