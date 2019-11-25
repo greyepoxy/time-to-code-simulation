@@ -1,20 +1,19 @@
 import * as random from 'random';
 
 export class ProbabilityDistribution {
+  static getLogNormal(mean?: number, standardDeviation?: number): ProbabilityDistribution {
+    const distribution = random.logNormal(mean, standardDeviation);
+    return new ProbabilityDistribution(distribution);
+  }
+
   static getNormal(mean?: number, standardDeviation?: number): ProbabilityDistribution {
     const distribution = random.normal(mean, standardDeviation);
-    const randomGenerator = () => {
-      return distribution();
-    };
-    return new ProbabilityDistribution(randomGenerator);
+    return new ProbabilityDistribution(distribution);
   }
 
   static getUniform(lowerBound: number, upperBound: number): ProbabilityDistribution {
     const distribution = random.uniform(lowerBound, upperBound);
-    const randomGenerator = () => {
-      return distribution();
-    };
-    return new ProbabilityDistribution(randomGenerator);
+    return new ProbabilityDistribution(distribution);
   }
 
   static getFixed(value: number): ProbabilityDistribution {

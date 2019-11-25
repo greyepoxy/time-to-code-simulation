@@ -4,7 +4,7 @@ import { Duration } from 'luxon';
 import { drawThroughput } from './drawThroughput';
 import { drawTotalWorkCompleted } from './drawTotalWorkCompleted';
 
-const simulationRuntime = Duration.fromObject({ hours: 200 });
+const simulationRuntime = Duration.fromObject({ hours: 800 });
 
 const simulationResults = runForDuration(getInitialState(), simulationRuntime);
 const simulationStatistics = simulationResults.history.slice();

@@ -1,6 +1,7 @@
 import { Duration } from 'luxon';
 import { CodeChange, getCodeChange } from './codeChange';
 import { ProbabilityDistribution } from './probabilityDistribution';
+import { ModifierToken, getModifierToken, calculateModification } from './modifierToken';
 
 const timeStep = Duration.fromObject({ hours: 1 });
 const statisticsCaptureTimeStep = Duration.fromObject({
@@ -25,11 +26,18 @@ export interface CurrentState {
   completedCodeChanges: ReadonlyArray<CodeChange>;
   currentItemInProgress: ItemInProgress;
   totalRuntime: Duration;
+  timeToCompleteNextItemModifiers: ReadonlyArray<ModifierToken>;
 }
 
 export interface TimeToCompleteCalculationSettings {
   baseTimeToComplete: number;
   probabilityDistribution: ProbabilityDistribution;
+  probabilityOfGeneratingHazard: number;
+  probabilityDistributionForCalculatingModifierForHazard: ProbabilityDistribution;
+  probabilityDistributionForGeneratingProbabilityOfHazardApplying: ProbabilityDistribution;
+  probabilityOfGeneratingReusableDomainCode: number;
+  probabilityDistributionForCalculatingModifierForReusableDomainCode: ProbabilityDistribution;
+  probabilityDistributionForGeneratingProbabilityOfReusableDomainCodeApplying: ProbabilityDistribution;
 }
 
 export interface SimulationInfo {
@@ -97,7 +105,25 @@ export function getInitialState(simulationInfo?: Partial<SimulationInfo>): Simul
     throughputCalculationWindow,
     timeToCompleteCalculationSettings: {
       baseTimeToComplete: 8,
-      probabilityDistribution: ProbabilityDistribution.getNormal(1.0, 0.25)
+      probabilityDistribution: ProbabilityDistribution.getNormal(1.0, 0.1),
+      probabilityOfGeneratingHazard: 0.25,
+      probabilityDistributionForCalculatingModifierForHazard: ProbabilityDistribution.getUniform(
+        1.0,
+        1.5
+      ),
+      probabilityDistributionForGeneratingProbabilityOfHazardApplying: ProbabilityDistribution.getUniform(
+        0.01,
+        0.5
+      ),
+      probabilityOfGeneratingReusableDomainCode: 0.1,
+      probabilityDistributionForCalculatingModifierForReusableDomainCode: ProbabilityDistribution.getUniform(
+        0.5,
+        1.0
+      ),
+      probabilityDistributionForGeneratingProbabilityOfReusableDomainCodeApplying: ProbabilityDistribution.getUniform(
+        0.01,
+        0.5
+      )
     },
     ...simulationInfo
   };
@@ -106,9 +132,11 @@ export function getInitialState(simulationInfo?: Partial<SimulationInfo>): Simul
     current: {
       completedCodeChanges: [],
       currentItemInProgress: getNextItemToDo(
+        [],
         simulationInfoWithDefaults.timeToCompleteCalculationSettings
       ),
-      totalRuntime: Duration.fromObject({ hours: 0 })
+      totalRuntime: Duration.fromObject({ hours: 0 }),
+      timeToCompleteNextItemModifiers: []
     },
     history: [
       {
@@ -133,10 +161,45 @@ function updateCurrentStateForSingleTimeStep(
   const updatedRuntime = state.totalRuntime.plus(Duration.fromObject({ hours: 1 }));
 
   if (updatedProgress.timeSpentSoFar.equals(updatedProgress.codeChange.timeRequiredToComplete)) {
+    const uniformDistribution = ProbabilityDistribution.getUniform(0.0, 1.0);
+    const maybeNewHazard =
+      uniformDistribution.getNext() <
+      timeToCompleteCalculationSettings.probabilityOfGeneratingHazard
+        ? [
+            getModifierToken(
+              timeToCompleteCalculationSettings.probabilityDistributionForGeneratingProbabilityOfHazardApplying.getNext(),
+              ProbabilityDistribution.getFixed(
+                timeToCompleteCalculationSettings.probabilityDistributionForCalculatingModifierForHazard.getNext()
+              )
+            )
+          ]
+        : [];
+    const maybeNewReusableDomainCode =
+      uniformDistribution.getNext() <
+      timeToCompleteCalculationSettings.probabilityOfGeneratingReusableDomainCode
+        ? [
+            getModifierToken(
+              timeToCompleteCalculationSettings.probabilityDistributionForGeneratingProbabilityOfReusableDomainCodeApplying.getNext(),
+              ProbabilityDistribution.getFixed(
+                timeToCompleteCalculationSettings.probabilityDistributionForCalculatingModifierForReusableDomainCode.getNext()
+              )
+            )
+          ]
+        : [];
+    const updatedTimeToCompleteNextItemModifiers = [
+      ...state.timeToCompleteNextItemModifiers,
+      ...maybeNewHazard,
+      ...maybeNewReusableDomainCode
+    ];
+
     return {
       completedCodeChanges: state.completedCodeChanges.concat(updatedProgress.codeChange),
-      currentItemInProgress: getNextItemToDo(timeToCompleteCalculationSettings),
-      totalRuntime: updatedRuntime
+      currentItemInProgress: getNextItemToDo(
+        updatedTimeToCompleteNextItemModifiers,
+        timeToCompleteCalculationSettings
+      ),
+      totalRuntime: updatedRuntime,
+      timeToCompleteNextItemModifiers: updatedTimeToCompleteNextItemModifiers
     };
   }
 
@@ -147,9 +210,15 @@ function updateCurrentStateForSingleTimeStep(
   };
 }
 
-function getNextItemToDo(settings: TimeToCompleteCalculationSettings): ItemInProgress {
+function getNextItemToDo(
+  modifierTokens: ReadonlyArray<ModifierToken>,
+  settings: TimeToCompleteCalculationSettings
+): ItemInProgress {
+  const modificationDueToTokens = calculateModification(modifierTokens);
   const hoursToComplete = Math.round(
-    settings.baseTimeToComplete * settings.probabilityDistribution.getNext()
+    settings.baseTimeToComplete *
+      settings.probabilityDistribution.getNext() *
+      modificationDueToTokens
   );
   return {
     timeSpentSoFar: Duration.fromObject({ hours: 0 }),
