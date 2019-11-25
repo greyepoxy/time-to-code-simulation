@@ -64,10 +64,20 @@ export function drawLineGraph(
     .y(d => y(d.y))
     .curve(d3.curveMonotoneX);
 
-  svg
+  const path = svg
     .append('path')
     .attr('fill', 'none')
     .attr('stroke', 'steelblue')
     .attr('stroke-width', 1.5)
     .attr('d', lineGenerator(data) || '');
+
+  const pathLength = path.node()!.getTotalLength();
+
+  path
+    .attr('stroke-dashoffset', pathLength)
+    .attr('stroke-dasharray', pathLength)
+    .transition()
+    .ease(d3.easeSin)
+    .duration(1500)
+    .attr('stroke-dashoffset', 0);
 }
